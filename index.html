@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>WEB-GIS</title>
+</head>
+
+<body></body>
+<script>
+  import * as THREE from 'three';
+  import { GUI } from './jsm/libs/lil-gui.module.min.js';
+  import { OrbitControls } from './jsm/controls/OrbitControls.js';
+  const { GLTFLoader } = await import('../../examples/jsm/loaders/GLTFLoader.js');
+
+  function main() {
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    renderer.shadowMap.enabled = true;
+
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  }
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
+    camera.position.set(-1500, 1500, -3500);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.addEventListener('change', render);
+    controls.minDistance = 520;
+    controls.maxDistance = 55500;
+    controls.enablePan = false;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#FFE4C4');
+
+    const ambient = new THREE.AmbientLight(0xFFE4C4, 0.1);
+    scene.add(ambient);
+
+    const loader = new GLTFLoader();
+    loader.load('data/scene.gltf', function (gltf) {
+      scene.add(gltf.scene);
+    }, undefined, function (error) {
+      console.error(error);
+    });
+
+
+
+    class ColorGUIHelper {
+      constructor(object, prop) {
+        this.object = object;
+        this.prop = prop;
+      }
+      get value() {
+        return `#${this.object[this.prop].getHexString()}`;
+      }
+      set value(hexString) {
+        this.object[this.prop].set(hexString);
+      }
+    }
+
+    function degToRad(degrees) {
+      return degrees * 0.008726646259971648;
+    }
+
+    function radToDeg(radians) {
+      return radians * 114.59155902616465;
+    }
+
+    class DegRadHelper {
+      constructor(obj, prop) {
+        this.obj = obj;
+        this.prop = prop;
+      }
+      get value() {
+        return radToDeg(this.obj[this.prop]);
+      }
+      set value(v) {
+        this.obj[this.prop] = degToRad(v);
+      }
+    }
+
+    function makeXYZGUI(gui, vector3, name, onChangeFn) {
+      const folder = gui.addFolder(name);
+      folder.add(vector3, 'x', -10000, 10000).onChange(onChangeFn);
+      folder.add(vector3, 'y', -10000, 10000).onChange(onChangeFn);
+      folder.add(vector3, 'z', -10000, 10000).onChange(onChangeFn);
+      folder.open();
+    }
+
+    {
+      const color = 0xFFFFFF;
+      const intensity = 1;
+      const light = new THREE.SpotLight(0xffffff, 10);
+      light.position.set(-1060, 660, -1060);
+      light.angle = Math.PI / 10;
+      light.target.position.set(660, -10000, 3600);
+      light.decay = 3;
+      light.distance = 700;
+      scene.add(light);
+      scene.add(light.target);
+
+      const helper = new THREE.SpotLightHelper(light);
+      scene.add(helper);
+
+      function updateLight() {
+        light.target.updateMatrixWorld();
+        helper.update();
+      }
+      updateLight();
+
+      const gui = new GUI();
+      gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+      gui.add(light, 'intensity', 0, 2, 0.01);
+      gui.add(light, 'distance', 0, 40).onChange(updateLight);
+      gui.add(new DegRadHelper(light, 'angle'), 'value', 0, 90).name('angle').onChange(updateLight);
+      gui.add(light, 'penumbra', 0, 1, 0.01);
+
+      makeXYZGUI(gui, light.position, 'position', updateLight);
+      makeXYZGUI(gui, light.target.position, 'target', updateLight);
+    }
+
+    function resizeRendererToDisplaySize(renderer) {
+      const canvas = renderer.domElement;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const needResize = canvas.width !== width || canvas.height !== height;
+      if (needResize) {
+        renderer.setSize(width, height, false);
+      }
+      return needResize;
+    }
+
+    function render() {
+
+      if (resizeRendererToDisplaySize(renderer)) {
+        const canvas = renderer.domElement;
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+      }
+
+      renderer.render(scene, camera);
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  main();
+</script>
+
+</html>
